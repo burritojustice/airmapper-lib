@@ -1,0 +1,13 @@
+{
+  "name": "airmapper-lib",
+  "version": "1.0.0",
+  "description": "Pure map helpers for Airmapper: WKT and GeoJSON parsing, sf-blocks streets, distances, the creek fix, short numbers",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}},
+  "files": ["index.js", "index.d.ts"],
+  "scripts": {"test": "node --test"},
+  "license": "AGPL-3.0-only"
+}
