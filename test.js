@@ -66,6 +66,9 @@ test('parseShape takes SRID, Z values and objects', () => {
   assert.equal(L.parseShape({type: 'Point', coordinates: [1, 2]}).type, 'Point');
   assert.equal(L.parseShape({type: 'Feature', geometry: {type: 'Point', coordinates: [1, 2]}}).type, 'Point');
   assert.equal(L.parseShape({foo: 1}), null);
+  assert.equal(L.parseShape(['POINT (1 2)']).type, 'Point');
+  assert.equal(L.parseShape(['POINT (1 2)', 'POINT (3 4)']).type, 'GeometryCollection');
+  assert.equal(L.parseShape([]), null);
 });
 
 test('geometryOf: shape, then CNNs, then lat/lon', () => {

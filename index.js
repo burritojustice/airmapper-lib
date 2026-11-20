@@ -56,9 +56,13 @@ export function parseWkt(text) {
 }
 
 // WKT (SRID= prefixes and Z/M values allowed), GeoJSON (geometry, Feature or FeatureCollection,
-// as text or an object) or a "lat, lon" pair.
+// as text or an object) or a "lat, lon" pair. An array (an Airtable lookup) gives each item's shape.
 export function parseShape(raw) {
   if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    const parts = raw.map(parseShape).filter(Boolean);
+    return parts.length > 1 ? {type: 'GeometryCollection', geometries: parts} : (parts[0] ?? null);
+  }
   if (typeof raw === 'object') return raw.coordinates || raw.geometries || raw.type === 'Feature' || raw.type === 'FeatureCollection' ? parseShape(JSON.stringify(raw)) : null;
   const text = String(raw)
     .trim()
