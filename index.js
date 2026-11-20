@@ -55,10 +55,15 @@ export function parseWkt(text) {
   }
 }
 
-// WKT, GeoJSON (geometry, Feature or FeatureCollection) or a "lat, lon" pair.
+// WKT (SRID= prefixes and Z/M values allowed), GeoJSON (geometry, Feature or FeatureCollection,
+// as text or an object) or a "lat, lon" pair.
 export function parseShape(raw) {
   if (raw == null) return null;
-  const text = String(raw).trim();
+  if (typeof raw === 'object') return raw.coordinates || raw.geometries || raw.type === 'Feature' || raw.type === 'FeatureCollection' ? parseShape(JSON.stringify(raw)) : null;
+  const text = String(raw)
+    .trim()
+    .replace(/^SRID=\d+;\s*/i, '')
+    .replace(/\b(POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)\s+(?:ZM|Z|M)\s*\(/gi, '$1 (');
   if (!text) return null;
   if (text.startsWith('{')) {
     try {
@@ -122,6 +127,39 @@ export function fromCnns(text, streets) {
   if (points.length) parts.push({type: 'MultiPoint', coordinates: points});
   if (!parts.length) return null;
   return parts.length === 1 ? parts[0] : {type: 'GeometryCollection', geometries: parts};
+}
+
+// A checked point from latitude and longitude (numbers or text), or null.
+export function pointOf(lat, lon) {
+  const y = typeof lat === 'number' ? lat : parseFloat(String(lat ?? ''));
+  const x = typeof lon === 'number' ? lon : parseFloat(String(lon ?? ''));
+  if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 180 || Math.abs(y) > 90 || (x === 0 && y === 0)) return null;
+  return {type: 'Point', coordinates: [x, y]};
+}
+
+// One geometry for a record from whichever location fields it has.
+// shape: WKT or GeoJSON (text or object). cnns: CNNs separated by ; , or spaces. lat, lon: numbers or text.
+// streets: anything with segs.get(cnn) and nodes.get(cnn), like decodeStreets() gives.
+// Modes: 'auto', 'shapes' and 'dots' take the shape, else the CNNs, else lat/lon;
+// 'streets' takes the CNNs first; 'both' draws the shape and the CNNs together.
+export function geometryOf(src, streets = null, mode = 'auto') {
+  const {shape, cnns, lat, lon} = src || {};
+  const lines = cnns ? fromCnns(String(cnns), streets) : null;
+  let geom = mode === 'streets' ? lines : null;
+  if (!geom) geom = parseShape(shape);
+  if (mode === 'both' && geom && lines) geom = {type: 'GeometryCollection', geometries: [geom, lines]};
+  return geom || lines || pointOf(lat, lon);
+}
+
+// Show shapes from a zoom and dots below it ('auto'), only dots ('dots'), or only shapes (anything else).
+// Uses layer zoom ranges only, so a layer's own visibility (turned off in a key, say) is left alone.
+export function autoZoom(map, shapeLayers, dotLayers, mode = 'auto', zoom = 12) {
+  const set = (ids, lo, hi) => {
+    for (const id of ids) if (map.getLayer(id)) map.setLayerZoomRange(id, lo, hi);
+  };
+  const z = Math.max(0, Math.min(24, Number(zoom) || 12));
+  set(shapeLayers, mode === 'dots' ? 24 : mode === 'auto' ? z : 0, 24);
+  set(dotLayers, mode === 'auto' || mode === 'dots' ? 0 : 24, mode === 'auto' ? z : 24);
 }
 
 export function flatten(g) {

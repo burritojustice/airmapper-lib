@@ -59,3 +59,41 @@ test('hideCreeks converts legacy filters and hides streams', () => {
   assert.equal(calls['water_stream:visibility'], 'none');
   assert.deepEqual(calls.water_river[1], ['==', ['get', 'kind'], 'river']);
 });
+
+test('parseShape takes SRID, Z values and objects', () => {
+  assert.deepEqual(L.parseShape('SRID=4326;POINT Z (-122.4 37.7 12)'), {type: 'Point', coordinates: [-122.4, 37.7]});
+  assert.equal(L.parseShape('MULTILINESTRING M ((0 0 1, 1 1 2))').type, 'MultiLineString');
+  assert.equal(L.parseShape({type: 'Point', coordinates: [1, 2]}).type, 'Point');
+  assert.equal(L.parseShape({type: 'Feature', geometry: {type: 'Point', coordinates: [1, 2]}}).type, 'Point');
+  assert.equal(L.parseShape({foo: 1}), null);
+});
+
+test('geometryOf: shape, then CNNs, then lat/lon', () => {
+  const s = L.decodeStreets({seg_fields: ['cnn', 'geom'], segs: [[1, [-12240000, 3770000, 100, 0]]], node_fields: ['cnn', 'x', 'y'], nodes: [[2, -12240000, 3770000]]});
+  const poly = 'POLYGON ((0 0, 1 0, 1 1, 0 0))';
+  assert.equal(L.geometryOf({shape: poly, cnns: '1', lat: 37.7, lon: -122.4}, s).type, 'Polygon');
+  assert.equal(L.geometryOf({cnns: '1', lat: 37.7, lon: -122.4}, s).type, 'MultiLineString');
+  assert.equal(L.geometryOf({cnns: '2', lat: 37.7, lon: -122.4}, s).type, 'MultiPoint');
+  assert.equal(L.geometryOf({cnns: '1;2'}, s).type, 'GeometryCollection');
+  assert.deepEqual(L.geometryOf({cnns: '9', lat: '37.7', lon: '-122.4'}, s), {type: 'Point', coordinates: [-122.4, 37.7]});
+  assert.equal(L.geometryOf({shape: poly, cnns: '1'}, s, 'streets').type, 'MultiLineString');
+  assert.equal(L.geometryOf({shape: poly, cnns: '9'}, s, 'streets').type, 'Polygon');
+  assert.equal(L.geometryOf({shape: poly, cnns: '1'}, s, 'both').type, 'GeometryCollection');
+  assert.equal(L.geometryOf({cnns: '1'}, null), null);
+  assert.equal(L.geometryOf({lat: 0, lon: 0}), null);
+  assert.equal(L.geometryOf({lat: 137, lon: -122}), null);
+  assert.equal(L.geometryOf(null), null);
+  const like = {segs: {get: (c) => (c === '5' ? [[0, 0], [1, 1]] : undefined)}, nodes: {get: () => undefined}};
+  assert.equal(L.geometryOf({cnns: '5'}, like).type, 'MultiLineString');
+});
+
+test('autoZoom sets zoom ranges only', () => {
+  const calls = {};
+  const map = {getLayer: (id) => id !== 'gone', setLayerZoomRange: (id, lo, hi) => (calls[id] = [lo, hi])};
+  L.autoZoom(map, ['fill', 'gone'], ['dot'], 'auto', 13);
+  assert.deepEqual(calls, {fill: [13, 24], dot: [0, 13]});
+  L.autoZoom(map, ['fill'], ['dot'], 'dots');
+  assert.deepEqual(calls, {fill: [24, 24], dot: [0, 24]});
+  L.autoZoom(map, ['fill'], ['dot'], 'shapes');
+  assert.deepEqual(calls, {fill: [0, 24], dot: [24, 24]});
+});

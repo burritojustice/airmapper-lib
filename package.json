@@ -1,7 +1,7 @@
 {
   "name": "airmapper-lib",
-  "version": "1.0.0",
-  "description": "Pure map helpers for Airmapper: WKT and GeoJSON parsing, sf-blocks streets, distances, the creek fix, short numbers",
+  "version": "1.1.0",
+  "description": "Pure map helpers for Airmapper and Block Party: WKT and GeoJSON parsing, picking a geometry from shape / CNNs / lat-lon, the dots-to-shapes zoom switch, sf-blocks streets, distances, the creek fix, short numbers",
   "type": "module",
   "main": "index.js",
   "module": "index.js",
